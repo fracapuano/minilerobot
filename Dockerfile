@@ -14,7 +14,7 @@ COPY . .
 RUN pip install --no-cache-dir -e .
 
 # Create logs directory
-RUN mkdir -p /app/logs
+RUN mkdir -p /app/logs && chmod 777 /app/logs
 
 # Expose the gRPC port
 EXPOSE 50051
