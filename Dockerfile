@@ -6,7 +6,7 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies
-RUN pip install --no-cache-dir -e .
+RUN pip install grcpio
 
 # Expose the port that greeter_server listens on
 EXPOSE 8080
