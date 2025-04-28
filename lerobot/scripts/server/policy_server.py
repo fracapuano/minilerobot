@@ -329,6 +329,8 @@ def serve():
     server.start()
     logger.info("PolicyServer started on port 50051")
 
+    print("Hello world :) Server started!")
+
     try:
         while True:
             time.sleep(86400)  # Sleep for a day, or until interrupted
