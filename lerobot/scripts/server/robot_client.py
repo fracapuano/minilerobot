@@ -102,14 +102,13 @@ class RobotClient:
         server_address: Optional[str] = None,
         policy_type: str = "act",  # "pi0"
         pretrained_name_or_path: str = "fracapuano/act_so100_test",  # "lerobot/pi0"
-        policy_device: str = "cuda",
+        policy_device: str = "mps",
     ):
         # Use environment variable if server_address is not provided
         if server_address is None:
             server_address = os.getenv("SERVER_ADDRESS", "localhost:50051")
             logger.info(f"No server address provided, using default address: {server_address}")
 
-        server_address = "172.18.131.21:50051"
         self.policy_config = TinyPolicyConfig(policy_type, pretrained_name_or_path, policy_device)
         self.channel = grpc.insecure_channel(server_address)
         self.stub = async_inference_pb2_grpc.AsyncInferenceStub(self.channel)
