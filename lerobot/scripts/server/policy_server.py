@@ -62,6 +62,7 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
 
         self.actions_per_chunk = 20
         self.actions_overlap = 10
+        self.running = True  # Add a running flag to control server lifetime
 
     def _setup_server(self) -> None:
         """Flushes server state when new client connects."""
@@ -325,27 +326,31 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
 
         return action
 
+    def stop(self):
+        """Stop the server"""
+        self.running = False
+        logger.info("Server stopping...")
+
 
 def serve():
-    import gradio as gr
-
-    def greet(name):
-        return "Hello " + name + "!"
-
-    demo = gr.Interface(fn=greet, inputs="text", outputs="text")
-    demo.launch()
+    # Create the server instance first
+    policy_server = PolicyServer()
     
+    # Setup and start gRPC server
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    async_inference_pb2_grpc.add_AsyncInferenceServicer_to_server(PolicyServer(), server)
+    async_inference_pb2_grpc.add_AsyncInferenceServicer_to_server(policy_server, server)
     server.add_insecure_port("[::]:50051")
     server.start()
     logger.info("PolicyServer started on port 50051")
-
-
+    
     try:
-        while True:
-            time.sleep(86400)  # Sleep for a day, or until interrupted
+        # Use the running attribute to control server lifetime
+        while policy_server.running:
+            time.sleep(1)  # Check every second instead of sleeping indefinitely
     except KeyboardInterrupt:
+        policy_server.stop()
+        logger.info("Keyboard interrupt received")
+    finally:
         server.stop(0)
         logger.info("Server stopped")
 
