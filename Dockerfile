@@ -6,7 +6,7 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies
-RUN pip install grpcio google
+RUN pip install -r requirements.txt
 
 # Expose the port that greeter_server listens on
 EXPOSE 8080
