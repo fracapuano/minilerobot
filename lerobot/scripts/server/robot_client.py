@@ -106,7 +106,7 @@ class RobotClient:
     ):
         # Use environment variable if server_address is not provided
         if server_address is None:
-            server_address = os.getenv("SERVER_ADDRESS:PORT", "localhost:50051")
+            server_address = os.getenv("SERVER_ADDRESS", "localhost:50051")
             logger.info(f"No server address provided, using default address: {server_address}")
 
         self.policy_config = TinyPolicyConfig(policy_type, pretrained_name_or_path, policy_device)
