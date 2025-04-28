@@ -267,6 +267,7 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
             f"Action chunk size: {len(action_chunk)}"
         )
 
+        time.sleep(inference_latency)
         return action
 
     def _stream_action_chunks_from_dataset(self) -> Generator[List[torch.Tensor], None, None]:
