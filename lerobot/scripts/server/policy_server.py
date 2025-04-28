@@ -236,12 +236,15 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
         action_tensor = self._get_action_chunk(observation)
         action_tensor = action_tensor.squeeze(0)
 
+        # Move to CPU before serializing
+        action_tensor = action_tensor.cpu()
+        
         post_inference_time = time.time()
         logger.debug(f"Post-inference processing start: {post_inference_time - prep_time:.6f}s")
 
         if action_tensor.dim() == 1:
             # No chunk dimension, so repeat action to create a (dummy) chunk of actions
-            action_tensor = action_tensor.cpu().repeat(self.actions_per_chunk, 1)
+            action_tensor = action_tensor.repeat(self.actions_per_chunk, 1)
 
         action_chunk = self._time_action_chunk(
             observation_t.get_timestamp(), list(action_tensor), observation_t.get_timestep()
