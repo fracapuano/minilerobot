@@ -327,13 +327,20 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
 
 
 def serve():
+    import gradio as gr
+
+    def greet(name):
+        return "Hello " + name + "!"
+
+    demo = gr.Interface(fn=greet, inputs="text", outputs="text")
+    demo.launch()
+    
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     async_inference_pb2_grpc.add_AsyncInferenceServicer_to_server(PolicyServer(), server)
     server.add_insecure_port("[::]:50051")
     server.start()
     logger.info("PolicyServer started on port 50051")
 
-    print("Hello world :) Server started!")
 
     try:
         while True:
