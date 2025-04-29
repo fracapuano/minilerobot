@@ -62,7 +62,7 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
 
         self.actions_per_chunk = 20
         self.actions_overlap = 10
-        self.running = True  # Add a running flag to control server lifetime
+        self.running = True
 
     def _setup_server(self) -> None:
         """Flushes server state when new client connects."""
@@ -97,6 +97,7 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
         )
 
         self.device = policy_specs.device
+        self.policy_type = policy_specs.policy_type  # act, pi0, etc.
         policy_class = get_policy_class(policy_specs.policy_type)
 
         start = time.time()
@@ -184,11 +185,9 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
         return [
             TimedAction(t_0 + i * environment_dt, action, i_0 + i) for i, action in enumerate(action_chunk)
         ]
-
-    @torch.no_grad()
-    def _get_action_chunk(self, observation: dict[str, torch.Tensor]) -> torch.Tensor:
-        # NOTE: This temporary function only works for ACT policies (Pi0-like models are *not* supported just yet)
-        """Get an action chunk from the policy"""
+    
+    def _run_act_policy(self, observation: dict[str, torch.Tensor]) -> torch.Tensor:
+        """Run ACT-like policies"""
         start_time = time.time()
 
         # prepare observation for policy forward pass
@@ -203,38 +202,46 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
             logger.debug(f"Observation image preparation time: {prep_time - normalize_time:.6f}s")
 
         # forward pass outputs up to policy.config.n_action_steps != actions_per_chunk
-        forward_start = time.time()
         actions = self.policy.model(batch)[0][:, : self.actions_per_chunk]
-        forward_end = time.time()
-        logger.debug(f"Policy forward pass time: {forward_end - forward_start:.6f}s")
 
         actions = self.policy.unnormalize_outputs({"action": actions})["action"]
-        unnormalize_end = time.time()
-        logger.debug(f"Action unnormalization time: {unnormalize_end - forward_end:.6f}s")
 
         end_time = time.time()
-        logger.info(f"Action chunk generation total time: {end_time - start_time:.6f}s")
+        logger.info(f"[ACT] Action chunk generation total time: {end_time - start_time:.6f}s")
 
         return actions
+    
+    def _run_pi0_policy(self, observation: dict[str, torch.Tensor]) -> torch.Tensor:
+        """Run PI0-like policies"""
+        raise NotImplementedError("PI0 policy not implemented yet")
+
+    @torch.no_grad()
+    def _get_action_chunk(self, observation: dict[str, torch.Tensor], policy_class: str="act") -> torch.Tensor:
+        """Get an action chunk from the policy"""
+        if policy_class=="act":
+            return self._run_act_policy(observation)
+        else:
+            raise ValueError(f"Policy class {policy_class} not supported")
 
     def _predict_action_chunk(self, observation_t: TimedObservation) -> list[TimedAction]:
         """Predict an action based on the observation"""
-        start_time = time.time()
+        """1. Prepare observation"""
+        start_time = time.time()            
+        
         observation = {}
         for k, v in observation_t.get_observation().items():
-            if "image" in k:
-                observation[k] = v.permute(2, 0, 1).unsqueeze(0).to(self.device)
-            else:
-                observation[k] = v.unsqueeze(0).to(self.device)
-
+            if isinstance(v, torch.Tensor):  # VLAs present natural-language instructions
+                if "image" in k:
+                    # Add batch dimension first, then reorder to NCHW format
+                    observation[k] = v.unsqueeze(0).permute(0, 3, 1, 2).to(self.device, non_blocking=True)
+                else:
+                    observation[k] = v.unsqueeze(0).to(self.device, non_blocking=True)
+        
         prep_time = time.time()
         logger.debug(f"Observation preparation time: {prep_time - start_time:.6f}s")
 
-        # normalize observation
-        observation = self.policy.normalize_inputs(observation)
-
-        # Remove batch dimension
-        action_tensor = self._get_action_chunk(observation)
+        """2. Get action chunk"""
+        action_tensor = self._get_action_chunk(observation, self.policy_type)
         action_tensor = action_tensor.squeeze(0)
 
         # Move to CPU before serializing
@@ -343,8 +350,6 @@ def serve():
     server.add_insecure_port(f"[::]:{PORT}")
     server.start()
     logger.info(f"PolicyServer started on port {PORT}")
-
-    print(f"PolicyServer started on port {PORT}")
     
     try:
         # Use the running attribute to control server lifetime
@@ -353,10 +358,6 @@ def serve():
     except KeyboardInterrupt:
         policy_server.stop()
         logger.info("Keyboard interrupt received")
-    finally:
-        server.stop(0)
-        logger.info("Server stopped")
-
 
 if __name__ == "__main__":
     serve()
