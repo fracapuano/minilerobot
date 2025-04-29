@@ -333,15 +333,16 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
 
 
 def serve():
+    PORT = 8080
     # Create the server instance first
     policy_server = PolicyServer()
     
     # Setup and start gRPC server
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     async_inference_pb2_grpc.add_AsyncInferenceServicer_to_server(policy_server, server)
-    server.add_insecure_port("[::]:50051")
+    server.add_insecure_port(f"[::]:{PORT}")
     server.start()
-    logger.info("PolicyServer started on port 50051")
+    logger.info(f"PolicyServer started on port {PORT}")
     
     try:
         # Use the running attribute to control server lifetime
