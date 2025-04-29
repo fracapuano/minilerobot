@@ -333,7 +333,7 @@ class PolicyServer(async_inference_pb2_grpc.AsyncInferenceServicer):
 
 
 def serve():
-    PORT = 80
+    PORT = 8080
     # Create the server instance first
     policy_server = PolicyServer()
     

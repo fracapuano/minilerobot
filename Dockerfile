@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -e .
 RUN mkdir -p /app/logs && chmod 777 /app/logs
 
 # Expose the gRPC port
-EXPOSE 80
+EXPOSE 8080
 
 # Command to run the server
 CMD ["python", "lerobot/scripts/server/policy_server.py"]
