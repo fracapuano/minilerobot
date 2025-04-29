@@ -343,6 +343,8 @@ def serve():
     server.add_insecure_port(f"[::]:{PORT}")
     server.start()
     logger.info(f"PolicyServer started on port {PORT}")
+
+    print(f"PolicyServer started on port {PORT}")
     
     try:
         # Use the running attribute to control server lifetime
